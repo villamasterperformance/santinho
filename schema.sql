@@ -79,3 +79,25 @@ create table if not exists contatos_import_codigos (
   expira_em timestamptz not null,
   criado_em timestamptz not null default now()
 );
+
+create table if not exists admins (
+  id uuid primary key default gen_random_uuid(),
+  telefone text unique not null,
+  nome text,
+  senha_hash text not null,
+  token text,
+  tentativas_erradas integer not null default 0,
+  bloqueado_ate timestamptz,
+  criado_em timestamptz not null default now()
+);
+
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  membro_id uuid not null references membros(id) on delete cascade,
+  endpoint text unique not null,
+  p256dh text not null,
+  auth text not null,
+  criado_em timestamptz not null default now()
+);
+
+create index if not exists idx_push_subscriptions_membro_id on push_subscriptions(membro_id);
