@@ -32,3 +32,23 @@ create table if not exists otp_codigos (
 );
 
 create index if not exists idx_otp_telefone on otp_codigos(telefone);
+
+create table if not exists missoes (
+  id uuid primary key default gen_random_uuid(),
+  ordem integer not null default 0,
+  titulo text not null,
+  texto text not null default '',
+  link_url text,
+  link_rotulo text,
+  pede_link boolean not null default false,
+  pontos integer not null default 0,
+  criado_em timestamptz not null default now()
+);
+
+create table if not exists missoes_concluidas (
+  membro_id uuid not null references membros(id) on delete cascade,
+  missao_id uuid not null references missoes(id) on delete cascade,
+  concluida_em timestamptz not null default now(),
+  link text,
+  primary key (membro_id, missao_id)
+);

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <mask id="furo">
+      <rect width="1080" height="1080" fill="white"/>
+      <circle cx="540" cy="500" r="430" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="1080" height="1080" fill="#0a2963" mask="url(#furo)"/>
+  <circle cx="540" cy="500" r="430" fill="none" stroke="#f4b929" stroke-width="14"/>
+  <rect x="0" y="930" width="1080" height="150" fill="#0a2963"/>
+  <text x="540" y="1000" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="56" fill="#ffffff">💙 OSCAR SILVA</text>
+  <text x="540" y="1050" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="30" fill="#f4b929">Candidato a Deputado Federal</text>
+</svg>
