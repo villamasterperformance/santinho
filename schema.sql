@@ -56,3 +56,26 @@ create table if not exists missoes_concluidas (
   link text,
   primary key (membro_id, missao_id)
 );
+
+create table if not exists contatos_importados (
+  id uuid primary key default gen_random_uuid(),
+  membro_id uuid not null references membros(id) on delete cascade,
+  nome text not null,
+  telefone text not null,
+  email text,
+  origem text,
+  consent_versao text,
+  criado_em timestamptz not null default now(),
+  unique (membro_id, telefone)
+);
+
+create index if not exists idx_contatos_importados_membro_id on contatos_importados(membro_id);
+
+create table if not exists contatos_import_codigos (
+  id uuid primary key default gen_random_uuid(),
+  membro_id uuid not null references membros(id) on delete cascade,
+  codigo text unique not null,
+  consent_versao text,
+  expira_em timestamptz not null,
+  criado_em timestamptz not null default now()
+);
