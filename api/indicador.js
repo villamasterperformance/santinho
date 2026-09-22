@@ -9,7 +9,7 @@ const MARCA = {
   marca_nome: 'Oscar Silva',
   marca_titulo: 'Candidato a Deputado Federal',
   marca_favicon_url: '/assets/oscar/logo.png',
-  marca_foto_url: '/assets/oscar/foto.jpg',
+  marca_foto_url: '/assets/oscar/foto.svg',
   exige_sms: false,
   pede_cidade: false,
   marca_estado: 'DF',
@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       tipo: 'candidato',
       nome: 'Oscar Silva',
-      foto_url: '/assets/oscar/foto.jpg',
+      foto_url: '/assets/oscar/foto.svg',
       ...MARCA,
     });
     return;
