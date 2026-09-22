@@ -7,6 +7,9 @@ create table if not exists membros (
   slug text unique not null,
   nome text not null,
   telefone text unique not null,
+  email text,
+  instagram text,
+  foto_url text,
   cidade text,
   papel text not null check (papel in ('convidado', 'lider')),
   -- No FK: root referrer is the virtual candidate slug (e.g. "val"), never a real membros row.
