@@ -1,3 +1,7 @@
 .impeccable/
 .env.turnstile.local
 .claude/
+
+.vercel
+.env*
+node_modules/
