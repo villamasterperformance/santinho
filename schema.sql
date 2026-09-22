@@ -101,3 +101,10 @@ create table if not exists push_subscriptions (
 );
 
 create index if not exists idx_push_subscriptions_membro_id on push_subscriptions(membro_id);
+
+create table if not exists cidade_coords (
+  cidade text primary key,
+  lat double precision,
+  lng double precision,
+  criado_em timestamptz not null default now()
+);
