@@ -10,10 +10,10 @@ module.exports = async function handler(req, res) {
     whatsapp_grupo_url: null,
     whatsapp_grupo_titulo: null,
     colinha_url: 'https://oscarsilva.com.br',
-    colinha_titulo: 'Guia rápido do Oscar Silva',
+    colinha_titulo: 'Minha Colinha',
     colinha_texto:
-      'Estou no time do Oscar Silva! 💙 Se você também quer um Brasília mais justo, vem comigo: https://oscarsilva.com.br',
-    colinha_imagem_url: '/assets/oscar/logo.png',
+      'Essa é a minha colinha pra votar no Oscar Silva! 💙 Baixa, compartilha e cola no zap: https://oscarsilva.com.br',
+    colinha_imagem_url: '/assets/oscar/colinha.svg',
     colinha_faixa_url: null,
     videos: [],
     propostas: [],

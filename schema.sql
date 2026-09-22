@@ -16,6 +16,7 @@ create table if not exists membros (
   indicador_slug text,
   grupo_slug text,
   token text not null,
+  senha_hash text,
   dispositivo_id text,
   pontos integer not null default 0,
   criado_em timestamptz not null default now()

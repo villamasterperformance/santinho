@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960" width="720" height="960">
+  <rect width="720" height="960" fill="#ffffff"/>
+  <text x="40" y="50" font-family="Arial, sans-serif" font-size="18" fill="#64748b" letter-spacing="1">ELEIÇÕES 2026 · DF</text>
+  <text x="40" y="95" font-family="Arial, sans-serif" font-weight="800" font-size="42" fill="#0a2963">MINHA <tspan fill="#f4b929">COLINHA</tspan></text>
+  <rect x="40" y="115" width="220" height="6" fill="#f4b929"/>
+  <line x1="40" y1="150" x2="680" y2="150" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="40" y="195" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">DEPUTADO FEDERAL</text>
+  <rect x="40" y="210" width="56" height="60" rx="8" fill="#eef3fb" stroke="#0a2963" stroke-width="3"/>
+  <text x="68" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="34" fill="#0a2963">2</text>
+  <rect x="104" y="210" width="56" height="60" rx="8" fill="#eef3fb" stroke="#0a2963" stroke-width="3"/>
+  <text x="132" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="34" fill="#0a2963">2</text>
+  <rect x="168" y="210" width="56" height="60" rx="8" fill="#eef3fb" stroke="#0a2963" stroke-width="3"/>
+  <text x="196" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="34" fill="#0a2963">2</text>
+  <rect x="232" y="210" width="56" height="60" rx="8" fill="#eef3fb" stroke="#0a2963" stroke-width="3"/>
+  <text x="260" y="252" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="34" fill="#0a2963">2</text>
+  <text x="305" y="235" font-family="Arial, sans-serif" font-weight="800" font-size="20" fill="#0a2963">OSCAR SILVA</text>
+  <text x="305" y="258" font-family="Arial, sans-serif" font-size="15" fill="#64748b">Candidato a Deputado Federal</text>
+  <circle cx="650" cy="240" r="34" fill="#eef3fb" stroke="#f4b929" stroke-width="3"/>
+  <text x="650" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="22" fill="#0a2963">OS</text>
+
+  <text x="40" y="330" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">DEPUTADO DISTRITAL</text>
+  <g stroke="#cbd5e1" stroke-width="2" fill="#ffffff">
+    <rect x="40" y="345" width="48" height="56" rx="6"/>
+    <rect x="98" y="345" width="48" height="56" rx="6"/>
+    <rect x="156" y="345" width="48" height="56" rx="6"/>
+    <rect x="214" y="345" width="48" height="56" rx="6"/>
+    <rect x="272" y="345" width="48" height="56" rx="6"/>
+  </g>
+
+  <text x="40" y="455" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">SENADOR · 1º VOTO</text>
+  <g stroke="#cbd5e1" stroke-width="2" fill="#ffffff">
+    <rect x="40" y="470" width="48" height="56" rx="6"/>
+    <rect x="98" y="470" width="48" height="56" rx="6"/>
+    <rect x="156" y="470" width="48" height="56" rx="6"/>
+  </g>
+
+  <text x="40" y="580" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">SENADOR · 2º VOTO</text>
+  <g stroke="#cbd5e1" stroke-width="2" fill="#ffffff">
+    <rect x="40" y="595" width="48" height="56" rx="6"/>
+    <rect x="98" y="595" width="48" height="56" rx="6"/>
+    <rect x="156" y="595" width="48" height="56" rx="6"/>
+  </g>
+
+  <text x="40" y="705" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">GOVERNADOR</text>
+  <g stroke="#cbd5e1" stroke-width="2" fill="#ffffff">
+    <rect x="40" y="720" width="48" height="56" rx="6"/>
+    <rect x="98" y="720" width="48" height="56" rx="6"/>
+  </g>
+
+  <text x="40" y="830" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#334155" letter-spacing="1">PRESIDENTE</text>
+  <g stroke="#cbd5e1" stroke-width="2" fill="#ffffff">
+    <rect x="40" y="845" width="48" height="56" rx="6"/>
+    <rect x="98" y="845" width="48" height="56" rx="6"/>
+  </g>
+
+  <line x1="40" y1="920" x2="680" y2="920" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="40" y="945" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">💙 Time do Oscar Silva · oscarsilva.com.br</text>
+</svg>
