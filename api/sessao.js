@@ -76,7 +76,17 @@ async function adminAcesso(pool, body, res) {
     perfil: 'geral',
     gerencia_acessos: false,
     transfere_candidatos: false,
-    candidatos: [],
+    candidatos: [
+      {
+        id: 'val',
+        nome: 'Oscar Silva',
+        slug: 'val',
+        subdominio: null,
+        titulo: 'Candidato a Deputado Federal',
+        hostname: null,
+        admin_proprio: true,
+      },
+    ],
   });
 }
 
