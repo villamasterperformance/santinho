@@ -25,16 +25,44 @@ async function logAdmin(pool, adminEmail, acao, alvoTipo, alvoId, alvoNome, alvo
   }
 }
 
+// Actions that manage OTHER admin accounts (create, edit, delete, reset
+// password, view access list, read the audit log). Only an admin flagged
+// gerencia_acessos/master in the database may call these — previously ANY
+// authenticated admin could reset or delete ANY other admin's account,
+// including the master account, which is a privilege-escalation hole.
+const ACOES_GESTAO_ACESSOS = new Set([
+  'listar_operadores',
+  'criar_operador',
+  'criar',
+  'editar_nome',
+  'definir_telefone',
+  'editar_operador',
+  'senha_operador',
+  'senha',
+  'tirar_operador',
+  'tirar',
+  'listar_log',
+]);
+
 async function acessos(req, res, body) {
   const pool = getPool();
-  const admin = await pool.query('select id, email from admins where id = $1 and token = $2', [body.admin_id, body.admin_token]);
+  const admin = await pool.query(
+    'select id, email, master, gerencia_acessos from admins where id = $1 and token = $2',
+    [body.admin_id, body.admin_token]
+  );
   if (admin.rowCount === 0) {
     res.status(200).json({ error: 'sessao_invalida' });
     return;
   }
   const adminEmail = admin.rows[0].email;
+  const podeGerenciarAcessos = admin.rows[0].master || admin.rows[0].gerencia_acessos;
 
   const acao = body.acao;
+
+  if (ACOES_GESTAO_ACESSOS.has(acao) && !podeGerenciarAcessos) {
+    res.status(200).json({ error: 'sem_permissao' });
+    return;
+  }
 
   try {
     if (acao === 'listar_lideres') {
@@ -85,7 +113,7 @@ async function acessos(req, res, body) {
 
     if (acao === 'listar_operadores') {
       const result = await pool.query(
-        'select id, nome, telefone, email, criado_em from admins order by criado_em asc'
+        'select id, nome, telefone, email, master, gerencia_acessos, criado_em from admins order by criado_em asc'
       );
       res.status(200).json(result.rows);
       return;
@@ -96,6 +124,11 @@ async function acessos(req, res, body) {
       const telefone = String(body.telefone || '').replace(/\D/g, '');
       let email = String(body.email || '').trim().toLowerCase();
       const senha = String(body.senha || '').trim();
+      // Only a master admin can grant management privileges to a new
+      // operator; a non-master with gerencia_acessos can still create
+      // operators (gated above) but can't hand out its own privilege.
+      const souMaster = admin.rows[0].master;
+      const gerenciaAcessos = souMaster && body.gerencia_acessos === true;
 
       if (!telefone || !senha || senha.length < 6) {
         res.status(200).json({ error: 'dados_invalidos' });
@@ -113,8 +146,8 @@ async function acessos(req, res, body) {
       }
 
       await pool.query(
-        'insert into admins (telefone, nome, email, senha_hash) values ($1, $2, $3, $4)',
-        [telefone, nome || null, email, hash(senha)]
+        'insert into admins (telefone, nome, email, senha_hash, gerencia_acessos) values ($1, $2, $3, $4, $5)',
+        [telefone, nome || null, email, hash(senha), gerenciaAcessos]
       );
 
       await logAdmin(pool, adminEmail, 'criar_operador', 'admin', email, nome, telefone);
@@ -201,6 +234,17 @@ async function acessos(req, res, body) {
         return;
       }
 
+      // A non-master with gerencia_acessos can manage regular operators but
+      // must not be able to take over the master account by resetting its
+      // password.
+      if (!admin.rows[0].master) {
+        const alvo = await pool.query('select master from admins where email = $1', [email]);
+        if (alvo.rowCount > 0 && alvo.rows[0].master) {
+          res.status(200).json({ error: 'sem_permissao' });
+          return;
+        }
+      }
+
       const updated = await pool.query(
         'update admins set senha_hash = $1, token = $2 where email = $3 returning id',
         [hash(senha), randomToken(), email]
@@ -217,6 +261,20 @@ async function acessos(req, res, body) {
 
     if (acao === 'tirar_operador' || acao === 'tirar') {
       const email = String(body.email || '').trim().toLowerCase();
+
+      if (email === adminEmail) {
+        res.status(200).json({ error: 'nao_pode_remover_a_si_mesmo' });
+        return;
+      }
+
+      if (!admin.rows[0].master) {
+        const alvo = await pool.query('select master from admins where email = $1', [email]);
+        if (alvo.rowCount > 0 && alvo.rows[0].master) {
+          res.status(200).json({ error: 'sem_permissao' });
+          return;
+        }
+      }
+
       await pool.query('delete from admins where email = $1', [email]);
       await logAdmin(pool, adminEmail, 'tirar_operador', 'admin', email, null, null);
       res.status(200).json({ ok: true });

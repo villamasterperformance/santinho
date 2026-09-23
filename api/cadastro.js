@@ -1,5 +1,5 @@
 const { getPool } = require('./_db');
-const { slugify, randomToken, randomSuffix, readJson } = require('./_util');
+const { slugify, randomToken, randomSuffix, readJson, clientIp, dentroDoLimite } = require('./_util');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -35,6 +35,12 @@ module.exports = async function handler(req, res) {
   const pool = getPool();
 
   try {
+    const permitido = await dentroDoLimite(pool, `cadastro:${clientIp(req)}`, 10, 3600);
+    if (!permitido) {
+      res.status(200).json({ error: 'muitas_tentativas' });
+      return;
+    }
+
     const existente = await pool.query(
       'select slug, papel, token, indicador_slug from membros where telefone = $1',
       [telefone]

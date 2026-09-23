@@ -19,6 +19,8 @@ create table if not exists membros (
   senha_hash text,
   dispositivo_id text,
   pontos integer not null default 0,
+  tentativas_erradas integer not null default 0,
+  bloqueado_ate timestamptz,
   criado_em timestamptz not null default now()
 );
 
@@ -89,6 +91,12 @@ create table if not exists admins (
   token text,
   tentativas_erradas integer not null default 0,
   bloqueado_ate timestamptz,
+  -- master: full access to everything (initially granted to the first admin
+  -- ever created). gerencia_acessos: can create/edit/remove OTHER admin
+  -- accounts without being master. Both default false so a newly created
+  -- operator is unprivileged unless a master explicitly grants it.
+  master boolean not null default false,
+  gerencia_acessos boolean not null default false,
   criado_em timestamptz not null default now()
 );
 

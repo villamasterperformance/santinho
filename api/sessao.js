@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const webpush = require('web-push');
 const { getPool } = require('./_db');
-const { readJson } = require('./_util');
-const { hash } = require('./senha');
+const { readJson, clientIp, dentroDoLimite } = require('./_util');
+const { hash, verificar } = require('./senha');
 
 function randomToken() {
   return crypto.randomBytes(24).toString('hex');
@@ -31,7 +31,9 @@ async function adminLogin(pool, body, res) {
     return;
   }
 
-  if (hash(senha) !== admin.senha_hash) {
+  const resultado = verificar(senha, admin.senha_hash);
+
+  if (!resultado.valido) {
     const tentativas = admin.tentativas_erradas + 1;
     if (tentativas >= 5) {
       await pool.query(
@@ -47,9 +49,10 @@ async function adminLogin(pool, body, res) {
   }
 
   const token = randomToken();
+  const novoHash = resultado.precisaUpgrade ? hash(senha) : admin.senha_hash;
   await pool.query(
-    'update admins set token = $1, tentativas_erradas = 0, bloqueado_ate = null where id = $2',
-    [token, admin.id]
+    'update admins set token = $1, tentativas_erradas = 0, bloqueado_ate = null, senha_hash = $2 where id = $3',
+    [token, novoHash, admin.id]
   );
 
   res.status(200).json({ status: 'ok', id: admin.id, token, nome: admin.nome });
@@ -64,18 +67,27 @@ async function adminAcesso(pool, body, res) {
     return;
   }
 
-  const found = await pool.query('select id from admins where id = $1 and token = $2', [id, token]);
+  const found = await pool.query(
+    'select id, master, gerencia_acessos from admins where id = $1 and token = $2',
+    [id, token]
+  );
   if (found.rowCount === 0) {
     res.status(200).json({ admin: false });
     return;
   }
 
+  const admin = found.rows[0];
+
+  // Site is single-tenant today (one candidate, "val") — every admin row
+  // that exists is scoped to this one campaign, so the candidatos list is
+  // the same for everyone. master/gerencia_acessos now reflect the real
+  // database columns instead of being hardcoded true for every login.
   res.status(200).json({
     admin: true,
-    master: true,
-    perfil: 'geral',
-    gerencia_acessos: false,
-    transfere_candidatos: false,
+    master: !!admin.master,
+    perfil: admin.master ? 'geral' : 'candidato',
+    gerencia_acessos: !!(admin.master || admin.gerencia_acessos),
+    transfere_candidatos: !!admin.master,
     candidatos: [
       {
         id: 'val',
@@ -213,7 +225,14 @@ module.exports = async function handler(req, res) {
     const pool = getPool();
 
     try {
-      if (body.acao === 'admin_login') return await adminLogin(pool, body, res);
+      if (body.acao === 'admin_login') {
+        const permitido = await dentroDoLimite(pool, `admin_login:${clientIp(req)}`, 20, 3600);
+        if (!permitido) {
+          res.status(200).json({ status: 'bloqueado', segundos: 3600 });
+          return;
+        }
+        return await adminLogin(pool, body, res);
+      }
       if (body.acao === 'admin_acesso') return await adminAcesso(pool, body, res);
       if (body.acao === 'push_inscrever') return await pushInscrever(pool, body, res);
       if (body.acao === 'push_remover') return await pushRemover(pool, body, res);
