@@ -11,7 +11,7 @@ async function geocodarCidade(pool, chave, cidadeExibicao) {
       'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=' +
       encodeURIComponent(cidadeExibicao + ', Brasil');
     const resp = await fetch(url, {
-      headers: { 'User-Agent': 'santinho-app/1.0 (santinho-mu.vercel.app)' },
+      headers: { 'User-Agent': 'santinho-app/1.0 (santinho.oscarsilva.site)' },
     });
     const found = await resp.json();
     const lat = found[0] ? Number(found[0].lat) : null;

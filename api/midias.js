@@ -9,10 +9,10 @@ module.exports = async function handler(req, res) {
     radio_capa_url: null,
     whatsapp_grupo_url: null,
     whatsapp_grupo_titulo: null,
-    colinha_url: 'https://santinho-mu.vercel.app',
+    colinha_url: 'https://santinho.oscarsilva.site',
     colinha_titulo: 'Minha Colinha',
     colinha_texto:
-      'Essa é a minha colinha pra votar no Oscar Silva! 💙 Baixa, compartilha e cola no zap: https://santinho-mu.vercel.app',
+      'Essa é a minha colinha pra votar no Oscar Silva! 💙 Baixa, compartilha e cola no zap: https://santinho.oscarsilva.site',
     colinha_imagem_url: '/assets/oscar/colinha.svg',
     colinha_faixa_url: null,
     videos: [],

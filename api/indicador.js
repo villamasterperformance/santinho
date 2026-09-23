@@ -99,7 +99,7 @@ async function acessos(req, res, body) {
         res.status(200).json({ error: 'dados_invalidos' });
         return;
       }
-      if (!email) email = `${telefone}@celular.santinho-mu.vercel.app`;
+      if (!email) email = `${telefone}@celular.santinho.oscarsilva.site`;
 
       const existente = await pool.query(
         'select id from admins where telefone = $1 or email = $2',
