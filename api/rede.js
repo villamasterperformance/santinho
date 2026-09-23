@@ -78,7 +78,11 @@ async function equipeRaiz(pool, raizParam, res) {
        union all
        select m.slug from membros m join arvore a on m.indicador_slug = a.slug
      )
-     select id, nome, foto_url from membros where slug in (select slug from arvore) order by nome`,
+     select m.id, m.nome, m.foto_url, p.id as indicado_por_id
+     from membros m
+     left join membros p on p.slug = m.indicador_slug
+     where m.slug in (select slug from arvore)
+     order by m.nome`,
     [rootSlug]
   );
 
