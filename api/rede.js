@@ -58,9 +58,83 @@ async function equipeCidades(pool, id, token, res) {
   res.status(200).json(resultado);
 }
 
+async function equipeRaiz(pool, raizParam, res) {
+  let rootSlug = String(raizParam);
+  if (rootSlug !== 'val') {
+    const found = await pool.query(
+      'select slug from membros where id::text = $1 or slug = $1',
+      [rootSlug]
+    );
+    if (found.rowCount === 0) {
+      res.status(200).json([]);
+      return;
+    }
+    rootSlug = found.rows[0].slug;
+  }
+
+  const result = await pool.query(
+    `with recursive arvore as (
+       select slug from membros where indicador_slug = $1
+       union all
+       select m.slug from membros m join arvore a on m.indicador_slug = a.slug
+     )
+     select id, nome, foto_url from membros where slug in (select slug from arvore) order by nome`,
+    [rootSlug]
+  );
+
+  res.status(200).json(result.rows);
+}
+
+async function rankingCampanha(pool, res) {
+  const result = await pool.query(
+    `select m.id, m.nome, m.foto_url, m.pontos,
+      (with recursive arvore as (
+         select slug from membros where indicador_slug = m.slug
+         union all
+         select mm.slug from membros mm join arvore a on mm.indicador_slug = a.slug
+       ) select count(*)::int from arvore) as equipe,
+      (select count(*)::int from membros d where d.indicador_slug = m.slug) as diretos
+     from membros m
+     order by m.nome`
+  );
+
+  const ranking = result.rows.map((row) => ({
+    id: row.id,
+    nome: row.nome,
+    foto_url: row.foto_url,
+    equipe: row.equipe,
+    diretos: row.diretos,
+    pontos: row.pontos == null ? null : Number(row.pontos),
+  }));
+
+  res.status(200).json(ranking);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'method_not_allowed' });
+    return;
+  }
+
+  const pool = getPool();
+
+  if (req.query.raiz) {
+    try {
+      await equipeRaiz(pool, req.query.raiz, res);
+    } catch (err) {
+      console.error('rede raiz error', err);
+      res.status(200).json([]);
+    }
+    return;
+  }
+
+  if (req.query.ranking === '1') {
+    try {
+      await rankingCampanha(pool, res);
+    } catch (err) {
+      console.error('rede ranking error', err);
+      res.status(200).json([]);
+    }
     return;
   }
 
@@ -71,8 +145,6 @@ module.exports = async function handler(req, res) {
     res.status(200).json([]);
     return;
   }
-
-  const pool = getPool();
 
   if (req.query.cidades === '1') {
     try {
