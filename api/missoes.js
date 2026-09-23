@@ -1,6 +1,122 @@
 const { getPool } = require('./_db');
 const { readJson } = require('./_util');
 
+async function adminAuth(pool, adminId, adminToken) {
+  if (!adminId || !adminToken) return false;
+  const found = await pool.query('select id from admins where id = $1 and token = $2', [adminId, adminToken]);
+  return found.rowCount > 0;
+}
+
+async function adminSalvarEvento(pool, body, res) {
+  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!ok) {
+    res.status(200).json({ error: 'sessao_invalida' });
+    return;
+  }
+  const { id, titulo, quando, local, foto_url, tem_confirmacao, tem_checkin } = body;
+  if (!titulo) {
+    res.status(200).json({ error: 'dados_invalidos' });
+    return;
+  }
+  if (id) {
+    await pool.query(
+      `update eventos set titulo=$1, quando=$2, local=$3, foto_url=$4, tem_confirmacao=$5, tem_checkin=$6 where id=$7`,
+      [titulo, quando || null, local || null, foto_url || null, !!tem_confirmacao, !!tem_checkin, id]
+    );
+    res.status(200).json(id);
+  } else {
+    const inserted = await pool.query(
+      `insert into eventos (titulo, quando, local, foto_url, tem_confirmacao, tem_checkin)
+       values ($1,$2,$3,$4,$5,$6) returning id`,
+      [titulo, quando || null, local || null, foto_url || null, !!tem_confirmacao, !!tem_checkin]
+    );
+    res.status(200).json(inserted.rows[0].id);
+  }
+}
+
+async function adminApagarEvento(pool, body, res) {
+  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!ok) {
+    res.status(200).json({ error: 'sessao_invalida' });
+    return;
+  }
+  if (!body.id) {
+    res.status(200).json({ error: 'dados_invalidos' });
+    return;
+  }
+  await pool.query('delete from eventos where id = $1', [body.id]);
+  res.status(200).json({ ok: true });
+}
+
+async function adminListarEventos(pool, body, res) {
+  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!ok) {
+    res.status(200).json([]);
+    return;
+  }
+  const result = await pool.query(
+    `select e.id, e.titulo, e.quando, e.local, e.foto_url, e.tem_confirmacao, e.tem_checkin, e.criado_em,
+       coalesce(c.total, 0)::int as quantidade_confirmados
+     from eventos e
+     left join (
+       select evento_id, count(*) as total from evento_confirmacoes where confirmado group by evento_id
+     ) c on c.evento_id = e.id
+     order by e.quando desc nulls last`
+  );
+  res.status(200).json(
+    result.rows.map((r) => ({
+      id: r.id,
+      titulo: r.titulo,
+      quando: r.quando,
+      local: r.local,
+      foto_url: r.foto_url,
+      tem_confirmacao: r.tem_confirmacao,
+      tem_checkin: r.tem_checkin,
+      criado_em: r.criado_em,
+      candidatos: [],
+      quantidade_confirmados: r.quantidade_confirmados,
+    }))
+  );
+}
+
+async function eventosListar(pool, body, res) {
+  const { id, token } = body;
+  const membro = await pool.query('select id from membros where id = $1 and token = $2', [id, token]);
+  if (membro.rowCount === 0) {
+    res.status(200).json([]);
+    return;
+  }
+  const result = await pool.query(
+    `select e.id, e.titulo, e.quando, e.local, e.foto_url, e.tem_confirmacao, e.tem_checkin,
+       coalesce(c.confirmado, false) as confirmado
+     from eventos e
+     left join evento_confirmacoes c on c.evento_id = e.id and c.membro_id = $1
+     order by e.quando desc nulls last`,
+    [id]
+  );
+  res.status(200).json(result.rows);
+}
+
+async function eventoConfirmar(pool, body, res) {
+  const { id, token, evento_id, confirmado } = body;
+  const membro = await pool.query('select id from membros where id = $1 and token = $2', [id, token]);
+  if (membro.rowCount === 0) {
+    res.status(200).json({ error: 'sessao_invalida' });
+    return;
+  }
+  if (!evento_id) {
+    res.status(200).json({ error: 'dados_invalidos' });
+    return;
+  }
+  await pool.query(
+    `insert into evento_confirmacoes (evento_id, membro_id, confirmado)
+     values ($1, $2, $3)
+     on conflict (evento_id, membro_id) do update set confirmado = excluded.confirmado`,
+    [evento_id, id, !!confirmado]
+  );
+  res.status(200).json(true);
+}
+
 module.exports = async function handler(req, res) {
   const pool = getPool();
 
@@ -63,6 +179,52 @@ module.exports = async function handler(req, res) {
       body = await readJson(req);
     } catch {
       res.status(400).json({ error: 'invalid_body' });
+      return;
+    }
+
+    if (body.acao === 'admin_salvar_evento') {
+      try {
+        await adminSalvarEvento(pool, body, res);
+      } catch (err) {
+        console.error('admin_salvar_evento error', err);
+        res.status(200).json({ error: 'erro_interno' });
+      }
+      return;
+    }
+    if (body.acao === 'admin_apagar_evento') {
+      try {
+        await adminApagarEvento(pool, body, res);
+      } catch (err) {
+        console.error('admin_apagar_evento error', err);
+        res.status(200).json({ error: 'erro_interno' });
+      }
+      return;
+    }
+    if (body.acao === 'admin_listar_eventos') {
+      try {
+        await adminListarEventos(pool, body, res);
+      } catch (err) {
+        console.error('admin_listar_eventos error', err);
+        res.status(200).json([]);
+      }
+      return;
+    }
+    if (body.acao === 'eventos_listar') {
+      try {
+        await eventosListar(pool, body, res);
+      } catch (err) {
+        console.error('eventos_listar error', err);
+        res.status(200).json([]);
+      }
+      return;
+    }
+    if (body.acao === 'evento_confirmar') {
+      try {
+        await eventoConfirmar(pool, body, res);
+      } catch (err) {
+        console.error('evento_confirmar error', err);
+        res.status(200).json({ error: 'erro_interno' });
+      }
       return;
     }
 

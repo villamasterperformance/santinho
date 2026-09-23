@@ -108,3 +108,23 @@ create table if not exists cidade_coords (
   lng double precision,
   criado_em timestamptz not null default now()
 );
+
+create table if not exists eventos (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  quando timestamptz,
+  local text,
+  foto_url text,
+  tem_confirmacao boolean not null default true,
+  tem_checkin boolean not null default true,
+  criado_em timestamptz not null default now()
+);
+
+create table if not exists evento_confirmacoes (
+  evento_id uuid not null references eventos(id) on delete cascade,
+  membro_id uuid not null references membros(id) on delete cascade,
+  confirmado boolean not null default true,
+  checkin_em timestamptz,
+  criado_em timestamptz not null default now(),
+  primary key (evento_id, membro_id)
+);
