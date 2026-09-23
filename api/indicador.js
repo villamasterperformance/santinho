@@ -76,20 +76,21 @@ async function acessos(req, res, body) {
       return;
     }
 
-    if (acao === 'criar_operador') {
+    if (acao === 'criar_operador' || acao === 'criar') {
       const nome = String(body.nome || '').trim();
       const telefone = String(body.telefone || '').replace(/\D/g, '');
-      const email = String(body.email || '').trim().toLowerCase();
+      let email = String(body.email || '').trim().toLowerCase();
       const senha = String(body.senha || '').trim();
 
-      if (!nome || !telefone || !senha || senha.length < 6) {
+      if (!telefone || !senha || senha.length < 6) {
         res.status(200).json({ error: 'dados_invalidos' });
         return;
       }
+      if (!email) email = `${telefone}@celular.oscarsilva.site`;
 
       const existente = await pool.query(
-        'select id from admins where telefone = $1 or (email is not null and email = $2)',
-        [telefone, email || null]
+        'select id from admins where telefone = $1 or email = $2',
+        [telefone, email]
       );
       if (existente.rowCount > 0) {
         res.status(200).json({ error: 'ja_existe' });
@@ -98,10 +99,58 @@ async function acessos(req, res, body) {
 
       await pool.query(
         'insert into admins (telefone, nome, email, senha_hash) values ($1, $2, $3, $4)',
-        [telefone, nome, email || null, hash(senha)]
+        [telefone, nome || null, email, hash(senha)]
       );
 
       res.status(200).json({ ok: true, nome, email, senha, telefone });
+      return;
+    }
+
+    if (acao === 'editar_nome') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const nome = String(body.nome || '').trim();
+
+      const updated = await pool.query(
+        'update admins set nome = $1 where email = $2 returning id',
+        [nome || null, email]
+      );
+      if (updated.rowCount === 0) {
+        res.status(200).json({ error: 'nao_encontrado' });
+        return;
+      }
+
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (acao === 'definir_telefone') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const telefone = String(body.telefone || '').replace(/\D/g, '');
+
+      if (!telefone) {
+        res.status(200).json('telefone_invalido');
+        return;
+      }
+
+      const conflito = await pool.query(
+        'select id from admins where telefone = $1 and email <> $2',
+        [telefone, email]
+      );
+      if (conflito.rowCount > 0) {
+        res.status(200).json('em_uso');
+        return;
+      }
+
+      const updated = await pool.query(
+        'update admins set telefone = $1 where email = $2 returning id',
+        [telefone, email]
+      );
+      if (updated.rowCount === 0) {
+        res.status(200).json('sem_admin');
+        return;
+      }
+
+      res.status(200).json('ok');
       return;
     }
 
@@ -126,7 +175,7 @@ async function acessos(req, res, body) {
       return;
     }
 
-    if (acao === 'senha_operador') {
+    if (acao === 'senha_operador' || acao === 'senha') {
       const email = String(body.email || '').trim().toLowerCase();
       const senha = String(body.senha || '').trim();
       if (!senha || senha.length < 6) {
@@ -147,7 +196,7 @@ async function acessos(req, res, body) {
       return;
     }
 
-    if (acao === 'tirar_operador') {
+    if (acao === 'tirar_operador' || acao === 'tirar') {
       const email = String(body.email || '').trim().toLowerCase();
       await pool.query('delete from admins where email = $1', [email]);
       res.status(200).json({ ok: true });
