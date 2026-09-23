@@ -1,4 +1,121 @@
+const crypto = require('crypto');
 const { getPool } = require('./_db');
+const { readJson } = require('./_util');
+const { hash } = require('./senha');
+
+async function adminAuth(pool, adminId, adminToken) {
+  if (!adminId || !adminToken) return false;
+  const found = await pool.query('select id from admins where id = $1 and token = $2', [adminId, adminToken]);
+  return found.rowCount > 0;
+}
+
+function randomToken() {
+  return crypto.randomBytes(24).toString('hex');
+}
+
+async function acessos(req, res, body) {
+  const pool = getPool();
+  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!ok) {
+    res.status(200).json({ error: 'sessao_invalida' });
+    return;
+  }
+
+  const acao = body.acao;
+
+  try {
+    if (acao === 'listar_operadores') {
+      const result = await pool.query(
+        'select id, nome, telefone, email, criado_em from admins order by criado_em asc'
+      );
+      res.status(200).json(result.rows);
+      return;
+    }
+
+    if (acao === 'criar_operador') {
+      const nome = String(body.nome || '').trim();
+      const telefone = String(body.telefone || '').replace(/\D/g, '');
+      const email = String(body.email || '').trim().toLowerCase();
+      const senha = String(body.senha || '').trim();
+
+      if (!nome || !telefone || !senha || senha.length < 6) {
+        res.status(200).json({ error: 'dados_invalidos' });
+        return;
+      }
+
+      const existente = await pool.query(
+        'select id from admins where telefone = $1 or (email is not null and email = $2)',
+        [telefone, email || null]
+      );
+      if (existente.rowCount > 0) {
+        res.status(200).json({ error: 'ja_existe' });
+        return;
+      }
+
+      await pool.query(
+        'insert into admins (telefone, nome, email, senha_hash) values ($1, $2, $3, $4)',
+        [telefone, nome, email || null, hash(senha)]
+      );
+
+      res.status(200).json({ ok: true, nome, email, senha, telefone });
+      return;
+    }
+
+    if (acao === 'editar_operador') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const novoEmail = String(body.novo_email || '').trim().toLowerCase();
+      const novoTelefone = String(body.novo_telefone || '').replace(/\D/g, '');
+
+      const found = await pool.query('select id from admins where email = $1', [email]);
+      if (found.rowCount === 0) {
+        res.status(200).json({ error: 'nao_encontrado' });
+        return;
+      }
+
+      await pool.query(
+        `update admins set email = coalesce(nullif($1, ''), email), telefone = coalesce(nullif($2, ''), telefone)
+         where id = $3`,
+        [novoEmail, novoTelefone, found.rows[0].id]
+      );
+
+      res.status(200).json({ ok: true, email: novoEmail || email, telefone: novoTelefone });
+      return;
+    }
+
+    if (acao === 'senha_operador') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const senha = String(body.senha || '').trim();
+      if (!senha || senha.length < 6) {
+        res.status(200).json({ error: 'dados_invalidos' });
+        return;
+      }
+
+      const updated = await pool.query(
+        'update admins set senha_hash = $1, token = $2 where email = $3 returning id',
+        [hash(senha), randomToken(), email]
+      );
+      if (updated.rowCount === 0) {
+        res.status(200).json({ error: 'nao_encontrado' });
+        return;
+      }
+
+      res.status(200).json({ ok: true, login_criado: true });
+      return;
+    }
+
+    if (acao === 'tirar_operador') {
+      const email = String(body.email || '').trim().toLowerCase();
+      await pool.query('delete from admins where email = $1', [email]);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    res.status(200).json({ error: 'acao_invalida' });
+  } catch (err) {
+    console.error('acessos error', err);
+    res.status(200).json({ error: 'erro_interno' });
+  }
+}
 
 const MARCA = {
   marca_subdominio: null,
@@ -17,6 +134,18 @@ const MARCA = {
 };
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'POST') {
+    let body;
+    try {
+      body = await readJson(req);
+    } catch {
+      res.status(400).json({ error: 'invalid_body' });
+      return;
+    }
+    await acessos(req, res, body);
+    return;
+  }
+
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'method_not_allowed' });
     return;

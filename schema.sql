@@ -84,6 +84,7 @@ create table if not exists admins (
   id uuid primary key default gen_random_uuid(),
   telefone text unique not null,
   nome text,
+  email text unique,
   senha_hash text not null,
   token text,
   tentativas_erradas integer not null default 0,
