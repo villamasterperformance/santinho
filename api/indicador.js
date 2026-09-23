@@ -13,13 +13,26 @@ function randomToken() {
   return crypto.randomBytes(24).toString('hex');
 }
 
+async function logAdmin(pool, adminEmail, acao, alvoTipo, alvoId, alvoNome, alvoTelefone, detalhes) {
+  try {
+    await pool.query(
+      `insert into admin_log (admin_email, acao, alvo_tipo, alvo_id, alvo_nome, alvo_telefone, detalhes)
+       values ($1, $2, $3, $4, $5, $6, $7)`,
+      [adminEmail || null, acao, alvoTipo || null, alvoId || null, alvoNome || null, alvoTelefone || null, detalhes ? JSON.stringify(detalhes) : null]
+    );
+  } catch (err) {
+    console.error('logAdmin error', err);
+  }
+}
+
 async function acessos(req, res, body) {
   const pool = getPool();
-  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
-  if (!ok) {
+  const admin = await pool.query('select id, email from admins where id = $1 and token = $2', [body.admin_id, body.admin_token]);
+  if (admin.rowCount === 0) {
     res.status(200).json({ error: 'sessao_invalida' });
     return;
   }
+  const adminEmail = admin.rows[0].email;
 
   const acao = body.acao;
 
@@ -102,6 +115,7 @@ async function acessos(req, res, body) {
         [telefone, nome || null, email, hash(senha)]
       );
 
+      await logAdmin(pool, adminEmail, 'criar_operador', 'admin', email, nome, telefone);
       res.status(200).json({ ok: true, nome, email, senha, telefone });
       return;
     }
@@ -119,6 +133,7 @@ async function acessos(req, res, body) {
         return;
       }
 
+      await logAdmin(pool, adminEmail, 'editar_nome', 'admin', email, nome, null);
       res.status(200).json({ ok: true });
       return;
     }
@@ -150,6 +165,7 @@ async function acessos(req, res, body) {
         return;
       }
 
+      await logAdmin(pool, adminEmail, 'definir_telefone', 'admin', email, null, telefone);
       res.status(200).json('ok');
       return;
     }
@@ -192,6 +208,7 @@ async function acessos(req, res, body) {
         return;
       }
 
+      await logAdmin(pool, adminEmail, 'trocar_senha', 'admin', email, null, null);
       res.status(200).json({ ok: true, login_criado: true });
       return;
     }
@@ -199,6 +216,40 @@ async function acessos(req, res, body) {
     if (acao === 'tirar_operador' || acao === 'tirar') {
       const email = String(body.email || '').trim().toLowerCase();
       await pool.query('delete from admins where email = $1', [email]);
+      await logAdmin(pool, adminEmail, 'tirar_operador', 'admin', email, null, null);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (acao === 'listar_log') {
+      const busca = String(body.busca || '').trim();
+      const limite = Math.min(Number(body.limite) || 300, 500);
+
+      let result;
+      if (busca) {
+        result = await pool.query(
+          `select id, criado_em, admin_email, acao, alvo_tipo, alvo_id, alvo_nome, alvo_telefone, detalhes
+           from admin_log
+           where acao ilike $1 or alvo_nome ilike $1 or alvo_telefone ilike $1 or admin_email ilike $1
+           order by criado_em desc
+           limit $2`,
+          [`%${busca}%`, limite]
+        );
+      } else {
+        result = await pool.query(
+          `select id, criado_em, admin_email, acao, alvo_tipo, alvo_id, alvo_nome, alvo_telefone, detalhes
+           from admin_log
+           order by criado_em desc
+           limit $1`,
+          [limite]
+        );
+      }
+      res.status(200).json(result.rows);
+      return;
+    }
+
+    if (acao === 'registrar_download_relatorio') {
+      await logAdmin(pool, adminEmail, 'download_relatorio', 'relatorio', null, String(body.titulo || ''), null);
       res.status(200).json({ ok: true });
       return;
     }

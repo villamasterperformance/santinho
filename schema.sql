@@ -121,6 +121,20 @@ create table if not exists eventos (
   criado_em timestamptz not null default now()
 );
 
+create table if not exists admin_log (
+  id uuid primary key default gen_random_uuid(),
+  criado_em timestamptz not null default now(),
+  admin_email text,
+  acao text not null,
+  alvo_tipo text,
+  alvo_id text,
+  alvo_nome text,
+  alvo_telefone text,
+  detalhes jsonb
+);
+
+create index if not exists idx_admin_log_criado_em on admin_log(criado_em desc);
+
 create table if not exists evento_confirmacoes (
   evento_id uuid not null references eventos(id) on delete cascade,
   membro_id uuid not null references membros(id) on delete cascade,

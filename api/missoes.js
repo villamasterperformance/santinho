@@ -2,14 +2,26 @@ const { getPool } = require('./_db');
 const { readJson } = require('./_util');
 
 async function adminAuth(pool, adminId, adminToken) {
-  if (!adminId || !adminToken) return false;
-  const found = await pool.query('select id from admins where id = $1 and token = $2', [adminId, adminToken]);
-  return found.rowCount > 0;
+  if (!adminId || !adminToken) return null;
+  const found = await pool.query('select id, email from admins where id = $1 and token = $2', [adminId, adminToken]);
+  return found.rowCount > 0 ? found.rows[0] : null;
+}
+
+async function logAdmin(pool, adminEmail, acao, alvoTipo, alvoId, alvoNome, alvoTelefone, detalhes) {
+  try {
+    await pool.query(
+      `insert into admin_log (admin_email, acao, alvo_tipo, alvo_id, alvo_nome, alvo_telefone, detalhes)
+       values ($1, $2, $3, $4, $5, $6, $7)`,
+      [adminEmail || null, acao, alvoTipo || null, alvoId || null, alvoNome || null, alvoTelefone || null, detalhes ? JSON.stringify(detalhes) : null]
+    );
+  } catch (err) {
+    console.error('logAdmin error', err);
+  }
 }
 
 async function adminSalvarEvento(pool, body, res) {
-  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
-  if (!ok) {
+  const admin = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!admin) {
     res.status(200).json({ error: 'sessao_invalida' });
     return;
   }
@@ -23,6 +35,7 @@ async function adminSalvarEvento(pool, body, res) {
       `update eventos set titulo=$1, quando=$2, local=$3, foto_url=$4, tem_confirmacao=$5, tem_checkin=$6 where id=$7`,
       [titulo, quando || null, local || null, foto_url || null, !!tem_confirmacao, !!tem_checkin, id]
     );
+    await logAdmin(pool, admin.email, 'editar_evento', 'evento', id, titulo, null);
     res.status(200).json(id);
   } else {
     const inserted = await pool.query(
@@ -30,13 +43,14 @@ async function adminSalvarEvento(pool, body, res) {
        values ($1,$2,$3,$4,$5,$6) returning id`,
       [titulo, quando || null, local || null, foto_url || null, !!tem_confirmacao, !!tem_checkin]
     );
+    await logAdmin(pool, admin.email, 'criar_evento', 'evento', inserted.rows[0].id, titulo, null);
     res.status(200).json(inserted.rows[0].id);
   }
 }
 
 async function adminApagarEvento(pool, body, res) {
-  const ok = await adminAuth(pool, body.admin_id, body.admin_token);
-  if (!ok) {
+  const admin = await adminAuth(pool, body.admin_id, body.admin_token);
+  if (!admin) {
     res.status(200).json({ error: 'sessao_invalida' });
     return;
   }
@@ -45,6 +59,7 @@ async function adminApagarEvento(pool, body, res) {
     return;
   }
   await pool.query('delete from eventos where id = $1', [body.id]);
+  await logAdmin(pool, admin.email, 'apagar_evento', 'evento', body.id, null, null);
   res.status(200).json({ ok: true });
 }
 
