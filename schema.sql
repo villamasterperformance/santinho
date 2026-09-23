@@ -135,6 +135,19 @@ create table if not exists admin_log (
 
 create index if not exists idx_admin_log_criado_em on admin_log(criado_em desc);
 
+create table if not exists candidatos_eleicao (
+  cargo text not null,
+  numero text not null,
+  ano int not null default 2026,
+  uf text not null default 'DF',
+  existe boolean not null,
+  nome text,
+  foto_url text,
+  sq_candidato text,
+  atualizado_em timestamptz not null default now(),
+  primary key (cargo, numero, ano, uf)
+);
+
 create table if not exists evento_confirmacoes (
   evento_id uuid not null references eventos(id) on delete cascade,
   membro_id uuid not null references membros(id) on delete cascade,

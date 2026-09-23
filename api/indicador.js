@@ -261,6 +261,55 @@ async function acessos(req, res, body) {
   }
 }
 
+const DIGITOS_POR_CARGO = { distrital: 5, senador: 3, presidente: 2 };
+
+// A API pública do TSE (divulgacandcontas.tse.jus.br) bloqueia requisições
+// server-to-server com 403 Access Denied (Akamai Bot Manager), mesmo a partir
+// da região gru1 da Vercel — testado e confirmado em produção. Por isso essa
+// checagem só consulta o cache local (tabela candidatos_eleicao), que precisa
+// ser populada manualmente até existir uma forma viável de buscar ao vivo.
+async function candidatoEleicao(req, res) {
+  const cargo = String(req.query.cargo || '').trim();
+  const numero = String(req.query.numero || '').trim();
+  const digitos = DIGITOS_POR_CARGO[cargo];
+
+  if (!digitos || !/^\d+$/.test(numero) || numero.length !== digitos) {
+    res.status(400).json({ error: 'parametros_invalidos' });
+    return;
+  }
+
+  // Dado só muda por atualização manual do admin, então dá pra cachear:
+  // corta consulta repetida no banco por causa do debounce de 500ms no
+  // frontend a cada tecla digitada.
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=3600');
+
+  const pool = getPool();
+  try {
+    const found = await pool.query(
+      `select existe, nome, foto_url from candidatos_eleicao
+       where cargo = $1 and numero = $2 and ano = 2026 and uf = 'DF'`,
+      [cargo, numero]
+    );
+
+    if (found.rowCount === 0) {
+      res.status(200).json({ numero, cargo, existe: null, nome: null, foto_url: null });
+      return;
+    }
+
+    const row = found.rows[0];
+    res.status(200).json({
+      numero,
+      cargo,
+      existe: row.existe,
+      nome: row.existe ? row.nome : null,
+      foto_url: row.existe ? row.foto_url : null,
+    });
+  } catch (err) {
+    console.error('candidatoEleicao error', err);
+    res.status(200).json({ numero, cargo, existe: null, nome: null, foto_url: null });
+  }
+}
+
 const MARCA = {
   marca_subdominio: null,
   marca_emoji: '💙',
@@ -292,6 +341,11 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'method_not_allowed' });
+    return;
+  }
+
+  if (req.query.acao === 'candidato_eleicao') {
+    await candidatoEleicao(req, res);
     return;
   }
 

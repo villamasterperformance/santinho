@@ -244,7 +244,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const found = await pool.query(
-      'select id, nome, slug, cidade, token from membros where id = $1 and token = $2',
+      'select id, nome, slug, cidade, email, instagram, foto_url, token from membros where id = $1 and token = $2',
       [id, token]
     );
 
@@ -258,10 +258,10 @@ module.exports = async function handler(req, res) {
       id: m.id,
       nome: m.nome,
       slug: m.slug,
-      email: null,
-      instagram: null,
+      email: m.email,
+      instagram: m.instagram,
       cidade: m.cidade,
-      foto_url: null,
+      foto_url: m.foto_url,
       presenca_confirmada: false,
       suspeito: false,
       evento_confirmado: false,
