@@ -38,18 +38,20 @@ async function acessos(req, res, body) {
 
   try {
     if (acao === 'listar_lideres') {
-      const [totalMembros, totalConfirmados, totalContatos, primeiroMembro] = await Promise.all([
+      const [totalMembros, totalConfirmados, totalContatos, primeiroMembro, cfgResult] = await Promise.all([
         pool.query('select count(*)::int as n from membros'),
         pool.query('select count(distinct membro_id)::int as n from evento_confirmacoes where confirmado'),
         pool.query('select count(*)::int as n from contatos_importados'),
         pool.query('select min(criado_em) as em from membros'),
+        pool.query('select nome, telefone, campanha_pausada, cadastro_exige_sms from candidato_config where id = $1', ['val']),
       ]);
+      const cfg = cfgResult.rows[0] || {};
 
       res.status(200).json([
         {
           id: 'val',
-          nome: 'Oscar Silva',
-          telefone: null,
+          nome: cfg.nome || 'Oscar Silva',
+          telefone: cfg.telefone || null,
           slug: 'val',
           instagram: null,
           cidade: null,
@@ -60,9 +62,9 @@ async function acessos(req, res, body) {
           logo_url: '/assets/oscar/logo.png',
           favicon_url: '/assets/oscar/logo.png',
           admin_proprio: true,
-          campanha_pausada: false,
-          cadastro_exige_sms: false,
-          login_exige_sms: false,
+          campanha_pausada: !!cfg.campanha_pausada,
+          cadastro_exige_sms: !!cfg.cadastro_exige_sms,
+          login_exige_sms: !!cfg.cadastro_exige_sms,
           partido: null,
           cadastro_concluido: true,
           criado_em: primeiroMembro.rows[0].em || new Date().toISOString(),
@@ -254,6 +256,105 @@ async function acessos(req, res, body) {
       return;
     }
 
+    if (acao === 'admin_equipe') {
+      const result = await pool.query(
+        `select m.id, m.nome, m.telefone, m.cidade, m.criado_em,
+                p.id as indicado_por_id,
+                coalesce(ec.confirmado, false) as presenca_confirmada,
+                ec.checkin_em
+         from membros m
+         left join membros p on p.slug = m.indicador_slug
+         left join evento_confirmacoes ec on ec.membro_id = m.id
+         order by m.criado_em asc`
+      );
+      res.status(200).json(
+        result.rows.map((r) => ({
+          id: r.id,
+          lider_id: 'val',
+          indicado_por_id: r.indicado_por_id,
+          nome: r.nome,
+          telefone: r.telefone,
+          cidade: r.cidade,
+          presenca_confirmada: r.presenca_confirmada,
+          checkin_em: r.checkin_em,
+          checkin_lat: null,
+          checkin_lng: null,
+          criado_em: r.criado_em,
+        }))
+      );
+      return;
+    }
+
+    if (acao === 'admin_regioes') {
+      const result = await pool.query(
+        `select coalesce(nullif(trim(cidade), ''), 'Não informado') as cidade, count(*)::int as total
+         from membros
+         group by 1
+         order by total desc
+         limit 20`
+      );
+      res.status(200).json(result.rows);
+      return;
+    }
+
+    if (acao === 'admin_perfil_lider') {
+      const cfg = await pool.query('select nome, telefone, titulo, estado, emoji_participar from candidato_config where id = $1', ['val']);
+      const c = cfg.rows[0] || {};
+      res.status(200).json({
+        nome: c.nome || 'Oscar Silva',
+        telefone: c.telefone || null,
+        subdominio: null,
+        hostname: null,
+        emoji_participar: c.emoji_participar || '💙',
+        estado: c.estado || 'DF',
+        titulo: c.titulo || null,
+      });
+      return;
+    }
+
+    if (acao === 'admin_editar_lider') {
+      const nome = String(body.nome || '').trim();
+      const telefone = body.telefone ? String(body.telefone).replace(/\D/g, '') : null;
+      await pool.query(
+        `update candidato_config set nome = coalesce(nullif($1, ''), nome), telefone = coalesce($2, telefone), atualizado_em = now() where id = 'val'`,
+        [nome, telefone]
+      );
+      await logAdmin(pool, adminEmail, 'editar_lider', 'candidato', 'val', nome, telefone);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (acao === 'admin_campo_lider') {
+      const CAMPOS = {
+        titulo: 'titulo',
+        estado: 'estado',
+        emoji_participar: 'emoji_participar',
+        campanha_pausada: 'campanha_pausada',
+        cadastro_exige_sms: 'cadastro_exige_sms',
+      };
+      const campo = CAMPOS[body.campo];
+      if (!campo) {
+        res.status(200).json({ error: 'campo_invalido' });
+        return;
+      }
+      await pool.query(
+        `update candidato_config set ${campo} = $1, atualizado_em = now() where id = 'val'`,
+        [body.valor]
+      );
+      await logAdmin(pool, adminEmail, `editar_${campo}`, 'candidato', 'val', null, null, { valor: body.valor });
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (acao === 'admin_subdominio_lider' || acao === 'admin_admin_proprio') {
+      // Site é single-tenant hoje (1 candidato, domínio fixo) — não há
+      // subdomínio por líder pra editar. Responde ok sem persistir nada
+      // pra não travar a tela; se algum dia houver multi-candidato de
+      // verdade, isso precisa de uma coluna própria em candidato_config.
+      res.status(200).json({ ok: true });
+      return;
+    }
+
     res.status(200).json({ error: 'acao_invalida' });
   } catch (err) {
     console.error('acessos error', err);
@@ -350,17 +451,34 @@ module.exports = async function handler(req, res) {
   }
 
   const slug = String(req.query.slug || '').trim();
+  const pool = getPool();
+
   if (!slug || slug === 'oscar-silva' || slug === 'val') {
+    let cfg = null;
+    try {
+      const cfgResult = await pool.query(
+        'select nome, titulo, estado, emoji_participar, campanha_pausada, cadastro_exige_sms from candidato_config where id = $1',
+        ['val']
+      );
+      cfg = cfgResult.rows[0] || null;
+    } catch (err) {
+      console.error('indicador candidato_config error', err);
+    }
+
     res.status(200).json({
       tipo: 'candidato',
-      nome: 'Oscar Silva',
+      nome: (cfg && cfg.nome) || 'Oscar Silva',
       foto_url: '/assets/oscar/foto.jpg',
       ...MARCA,
+      marca_nome: (cfg && cfg.nome) || MARCA.marca_nome,
+      marca_titulo: (cfg && cfg.titulo) || MARCA.marca_titulo,
+      marca_estado: (cfg && cfg.estado) || MARCA.marca_estado,
+      marca_emoji: (cfg && cfg.emoji_participar) || MARCA.marca_emoji,
+      cadastro_pausado: cfg ? !!cfg.campanha_pausada : MARCA.cadastro_pausado,
+      exige_sms: cfg ? !!cfg.cadastro_exige_sms : MARCA.exige_sms,
     });
     return;
   }
-
-  const pool = getPool();
 
   try {
     const found = await pool.query(

@@ -156,3 +156,18 @@ create table if not exists evento_confirmacoes (
   criado_em timestamptz not null default now(),
   primary key (evento_id, membro_id)
 );
+
+-- Single-row config for the campaign's one candidate (site is single-tenant:
+-- no per-lider subdomain/hostname anymore, so admin edits land here instead
+-- of the hardcoded MARCA object in api/indicador.js).
+create table if not exists candidato_config (
+  id text primary key default 'val',
+  nome text not null default 'Oscar Silva',
+  telefone text,
+  titulo text default 'Candidato a Deputado Federal',
+  estado text default 'DF',
+  emoji_participar text default '💙',
+  campanha_pausada boolean not null default false,
+  cadastro_exige_sms boolean not null default false,
+  atualizado_em timestamptz not null default now()
+);
