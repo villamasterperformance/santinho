@@ -24,6 +24,50 @@ async function acessos(req, res, body) {
   const acao = body.acao;
 
   try {
+    if (acao === 'listar_lideres') {
+      const [totalMembros, totalConfirmados, totalContatos, primeiroMembro] = await Promise.all([
+        pool.query('select count(*)::int as n from membros'),
+        pool.query('select count(distinct membro_id)::int as n from evento_confirmacoes where confirmado'),
+        pool.query('select count(*)::int as n from contatos_importados'),
+        pool.query('select min(criado_em) as em from membros'),
+      ]);
+
+      res.status(200).json([
+        {
+          id: 'val',
+          nome: 'Oscar Silva',
+          telefone: null,
+          slug: 'val',
+          instagram: null,
+          cidade: null,
+          foto_url: '/assets/oscar/foto.jpg',
+          subdominio: null,
+          hostname: null,
+          capa_url: '/assets/oscar/foto.jpg',
+          logo_url: '/assets/oscar/logo.png',
+          favicon_url: '/assets/oscar/logo.png',
+          admin_proprio: true,
+          campanha_pausada: false,
+          cadastro_exige_sms: false,
+          login_exige_sms: false,
+          partido: null,
+          cadastro_concluido: true,
+          criado_em: primeiroMembro.rows[0].em || new Date().toISOString(),
+          checkin_em: null,
+          checkin_lat: null,
+          checkin_lng: null,
+          evento_confirmado: false,
+          cadastrados: totalMembros.rows[0].n,
+          confirmados: totalConfirmados.rows[0].n,
+          contatos: totalContatos.rows[0].n,
+          contatos_24h: 0,
+          contatos_7d: 0,
+          contatos_30d: 0,
+        },
+      ]);
+      return;
+    }
+
     if (acao === 'listar_operadores') {
       const result = await pool.query(
         'select id, nome, telefone, email, criado_em from admins order by criado_em asc'
