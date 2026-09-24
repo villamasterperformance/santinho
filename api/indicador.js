@@ -343,6 +343,44 @@ async function acessos(req, res, body) {
       return;
     }
 
+    if (acao === 'admin_membro') {
+      const result = await pool.query('select nome, telefone, cidade from membros where id = $1', [body.id]);
+      if (result.rowCount === 0) {
+        res.status(200).json({ error: 'nao_encontrado' });
+        return;
+      }
+      res.status(200).json(result.rows[0]);
+      return;
+    }
+
+    if (acao === 'admin_editar_membro') {
+      const nome = String(body.nome || '').trim();
+      const telefone = String(body.telefone || '').replace(/\D/g, '');
+      // cidade is optional: the edit form doesn't always send it, so an
+      // absent key must leave the existing value untouched rather than
+      // nulling it out. Only an explicit '' clears it.
+      const cidadeInformada = Object.prototype.hasOwnProperty.call(body, 'cidade');
+      const cidade = cidadeInformada ? (String(body.cidade || '').trim() || null) : null;
+
+      if (!body.id || !nome || !telefone) {
+        res.status(200).json({ error: 'dados_invalidos' });
+        return;
+      }
+
+      const updated = await pool.query(
+        'update membros set nome = $1, telefone = $2, cidade = case when $3 then $4 else cidade end where id = $5 returning id',
+        [nome, telefone, cidadeInformada, cidade, body.id]
+      );
+      if (updated.rowCount === 0) {
+        res.status(200).json({ error: 'nao_encontrado' });
+        return;
+      }
+
+      await logAdmin(pool, adminEmail, 'editar_membro', 'membro', body.id, nome, telefone);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
     if (acao === 'admin_regioes') {
       const result = await pool.query(
         `select coalesce(nullif(trim(cidade), ''), 'Não informado') as cidade, count(*)::int as total
