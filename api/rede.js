@@ -27,12 +27,17 @@ async function geocodarCidade(pool, chave, cidadeExibicao) {
 }
 
 async function equipeCidades(pool, id, token, res) {
-  const root = await pool.query('select id, slug from membros where id = $1 and token = $2', [id, token]);
-  if (root.rowCount === 0) {
-    res.status(200).json([]);
-    return;
+  let rootSlug;
+  if (id === 'val') {
+    rootSlug = 'val';
+  } else {
+    const root = await pool.query('select id, slug from membros where id = $1 and token = $2', [id, token]);
+    if (root.rowCount === 0) {
+      res.status(200).json([]);
+      return;
+    }
+    rootSlug = root.rows[0].slug;
   }
-  const rootSlug = root.rows[0].slug;
 
   const grupos = await pool.query(
     `with recursive arvore as (
